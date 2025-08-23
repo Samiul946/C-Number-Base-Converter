@@ -3,7 +3,7 @@
 A robust, **command-line number base converter** written in C.  
 This program converts **64-bit signed integers** between any base from **2 to 36**, using digits `0-9` and letters `A-Z`.  
 
-Built with a strong focus on **memory safety, efficiency, and robust error handling**, it demonstrates advanced C programming practices that make it portfolio-ready.  
+Built with a strong focus on **memory safety, efficiency, and robust error handling**, it demonstrates advanced C programming practices.  
 
 ---
 
