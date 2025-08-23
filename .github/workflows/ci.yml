@@ -4,9 +4,9 @@ name: CI — Build & Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -19,21 +19,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Build & Test on ${{ matrix.os }}
+      - name: Build & Test
         run: |
           echo "Building and testing on $RUNNER_OS"
           make
           ./build/test_converter
 
-      - name: Clean up build artifacts
+      - name: Clean build artifacts
         if: always()
         run: |
           echo "Cleaning build artifacts"
           make clean
 
-      - name: Optional: Deep Workspace Cleanup
-        if: always()
+      - name: Deep cleanup on Unix
+        if: always() && (startsWith(matrix.os, 'ubuntu') || matrix.os == 'macos-latest')
         run: |
-          echo "Cleaning entire workspace (Linux/macOS only)"
-          rm -rf ./* ./.??* || true
+          echo "Cleaning entire workspace (Unix)"
+          rm -rf "${{ github.workspace }}"/* "${{ github.workspace }}/".??* || true
         shell: bash
+
+      - name: Deep cleanup on Windows
+        if: always() && matrix.os == 'windows-latest'
+        run: |
+          Write-Host "Cleaning entire workspace (Windows)"
+          Get-ChildItem -Recurse -Force | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        shell: pwsh
+
