@@ -1,0 +1,39 @@
+# .github/workflows/ci.yml
+
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build & Test on ${{ matrix.os }}
+        run: |
+          echo "Building and testing on $RUNNER_OS"
+          make
+          ./build/test_converter
+
+      - name: Clean up build artifacts
+        if: always()
+        run: |
+          echo "Cleaning build artifacts"
+          make clean
+
+      - name: Optional: Deep Workspace Cleanup
+        if: always()
+        run: |
+          echo "Cleaning entire workspace (Linux/macOS only)"
+          rm -rf ./* ./.??* || true
+        shell: bash
