@@ -1,53 +1,85 @@
-# C Universal Number Base Converter
+# 🔢 Universal Number Base Converter in C
 
-A robust, command-line number base converter written in C. This program converts 64-bit signed integers between any base from 2 to 36, using digits `0-9` and letters `A-Z`.
+A robust, **command-line number base converter** written in C.  
+This program converts **64-bit signed integers** between any base from **2 to 36**, using digits `0-9` and letters `A-Z`.  
 
+Built with a strong focus on **memory safety, efficiency, and robust error handling**, it demonstrates advanced C programming practices that make it portfolio-ready.  
 
+---
 
-## Features
+## ✨ Features
+- 🔄 **Universal Base Support** → Convert numbers between **any base 2–36**  
+- 🖥️ **64-Bit Integer Handling** → Supports the full range of `long long` (`LLONG_MIN` to `LLONG_MAX`)  
+- 🚫 **Robust Error Handling** → Detects invalid inputs, empty strings, out-of-range bases, and overflow  
+- 📦 **Dynamic Memory Management** → No fixed-size buffers; input grows dynamically to any length  
+- 🛡️ **Overflow Protection** → Explicit checks prevent undefined behavior on large conversions  
+- ✅ **Memory Safe** → Every `malloc` / `realloc` has a matching `free`, with **zero leaks**  
 
-- **Universal Base Support**: Converts numbers between any base from 2 to 36.
-- **64-Bit Signed Integers**: Handles the full range of `long long`, from `LLONG_MIN` to `LLONG_MAX`.
-- **Robust Error Handling**: Gracefully manages invalid input, empty strings, and numbers that are too large, with clear error messages.
-- **Dynamic Memory Management**: Safely handles input of any length, preventing buffer overflows.
-- **Overflow Protection**: Includes explicit checks to detect and prevent integer overflows during conversion.
+---
 
-## Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+### 📋 Prerequisites
+- A C compiler (e.g., **GCC** or **Clang**)  
+- The `make` build tool (recommended for simplicity)  
 
-- A C compiler (like GCC or Clang)
-- `make` (optional, but recommended)
+### ⚡ Build & Run
 
-### Compilation & Execution
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Samiul946/C-Number-Base-Converter.git
+   cd C-Number-Base-Converter
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/Samiul946/C-Number-Base-Converter.git](https://github.com/Samiul946/C-Number-Base-Converter.git)
-    cd C-Number-Base-Converter
-    ```
+   
+2. **Compile the program**:
+Using make (recommended):
+```bash
+make
+```
 
-2.  **Compile the program:**
-    *Using Makefile (recommended):*
-    ```bash
-    make
-    ```
-    *Using GCC manually:*
-    ```bash
-    gcc -Wall -Wextra -std=c11 -o converter converter.c
-    ```
+**Or manually**:
+```bash
+gcc -Wall -Wextra -std=c11 -O2 -Iinclude -o NumberBaseConverter src/NumberBaseConverter.c
+```
 
-3.  **Run the converter:**
-    ```bash
-    ./converter
-    ```
+**Run the interactive converter**:
+```bash
+./build/converter
+```
 
-## Technical Challenges
+***Run automated tests***:
+```bash
+./build/test_converter
+```
+## 🧠 Technical Highlights
 
-A key challenge in this project was ensuring mathematical correctness at the limits of the 64-bit integer range. Specifically, handling `LLONG_MIN` required careful attention, as negating it (`-LLONG_MIN`) causes a signed integer overflow, which is undefined behavior in C.
+### 🔒 Memory Safety by Design
+This project takes a **defensive approach** to memory:
 
-The solution was to perform all intermediate calculations on `unsigned long long` and then explicitly check if the final value corresponded to `LLONG_MIN` before applying the negative sign, thus avoiding the undefined operation entirely.
+- **Dynamic Input Buffers** → Input grows automatically with `realloc` as the user types, preventing overflow. After input, the buffer is shrunk to the exact required size.  
+- **Precise Output Allocation** → Results are first calculated in a temporary stack buffer, then copied into a perfectly-sized heap allocation. No wasted memory, no risk of writing past bounds.  
+- **Strict Ownership Model** → Each heap allocation has a clear owner. `main()` always frees what it allocates, ensuring **zero leaks**.  
 
-## License
+---
+
+### ⚖️ Correctness at Integer Limits
+Special care is taken with **edge cases like `LLONG_MIN`**:
+
+- Direct negation of `LLONG_MIN` is **undefined behavior in C**.  
+- To avoid this, conversions use `unsigned long long` intermediates.  
+- This ensures correctness across the full signed 64-bit range.  
+
+---
+
+### 🛡️ Robust Error Handling
+- Invalid bases (`<2` or `>36`) are rejected immediately  
+- Non-digit/letter characters in input cause a graceful error  
+- Overflow during conversion is detected explicitly and reported
+
+---
+
+### 📜 License
 
 This project is licensed under the MIT License - see the `LICENSE` file for details.
+
+---
