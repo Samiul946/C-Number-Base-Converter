@@ -3,7 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
-#include <limits.h> // For LLONG_MAX, LLONG_MIN, ULLONG_MAX
+#include <limits.h>
 
 // ========================
 //  Constants
@@ -11,16 +11,16 @@
 #define LINE_WIDTH 60
 #define MAX_BASE 36
 #define INITIAL_INPUT_BUFFER_SIZE 16
-#define CONVERSION_BUFFER_SIZE 70 // Sufficient for 64-bit binary + sign
+#define CONVERSION_BUFFER_SIZE (sizeof(unsigned long long) * CHAR_BIT + 2)
 
 // ========================
 //  Function Declarations
 // ========================
 void print_header(const char* title);
-void print_menu();
+void print_menu(void);
 void print_error(const char* message);
 void print_success(const char* message);
-void clear_input_buffer();
+void clear_input_buffer(void);
 char* trim_whitespace(char* str);
 int char_to_val(char c);
 char val_to_char(int val);
@@ -35,19 +35,22 @@ char* get_dynamic_input(const char* prompt);
 //  UI Functions
 // ========================
 void print_header(const char* title) {
+    size_t len = strlen(title);
+    int pad_left = (LINE_WIDTH - (int)len) / 2;
+    int pad_right = LINE_WIDTH - pad_left - (int)len;
+
     printf("\n");
-    for (int i = 0; i < LINE_WIDTH; i++) printf("=");
-    int padding = (LINE_WIDTH - (int)strlen(title)) / 2;
-    printf("\n%*s%s%*s\n", padding, "", title, padding, "");
-    for (int i = 0; i < LINE_WIDTH; i++) printf("=");
+    for (int i = 0; i < LINE_WIDTH; i++) putchar('=');
+    printf("\n%*s%s%*s\n", pad_left, "", title, pad_right, "");
+    for (int i = 0; i < LINE_WIDTH; i++) putchar('=');
     printf("\n");
 }
 
-void print_menu() {
+void print_menu(void) {
     print_header("Universal Number Base Converter");
-    printf(" This program can convert numbers between any base from 2 to %d.\n", MAX_BASE);
-    printf("  - Use digits 0-9 and letters A-Z (case-insensitive).\n");
-    printf("  - Enter '0' for a base to quit.\n");
+    printf(" This program converts numbers between any base from 2 to %d.\n", MAX_BASE);
+    printf("  - Digits: 0–9, Letters: A–Z (case-insensitive)\n");
+    printf("  - Enter 0 for any base to quit.\n");
 }
 
 void print_error(const char* message) {
@@ -58,7 +61,7 @@ void print_success(const char* message) {
     printf("\n%s\n", message);
 }
 
-void clear_input_buffer() {
+void clear_input_buffer(void) {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
@@ -68,11 +71,14 @@ void clear_input_buffer() {
 // ========================
 char* trim_whitespace(char* str) {
     char* end;
+
     while (isspace((unsigned char)*str)) str++;
-    if (*str == 0) return str;
+    if (*str == '\0') return str;
+
     end = str + strlen(str) - 1;
     while (end > str && isspace((unsigned char)*end)) end--;
     *(end + 1) = '\0';
+
     return str;
 }
 
@@ -84,17 +90,21 @@ int char_to_val(char c) {
 }
 
 char val_to_char(int val) {
-    if (val >= 0 && val <= 9) return val + '0';
-    if (val >= 10 && val < MAX_BASE) return val - 10 + 'A';
-    return '?';
+    if (val >= 0 && val <= 9) return (char)(val + '0');
+    if (val >= 10 && val < MAX_BASE) return (char)(val - 10 + 'A');
+
+    fprintf(stderr, "Internal error: invalid digit %d\n", val);
+    abort();
 }
 
 bool is_valid_input(const char* input, int base) {
-    if (!input) return false;
+    if (!input || !*input) return false;
+
     size_t start = (input[0] == '-' ? 1 : 0);
-    // OPTIMIZATION: Cache strlen result
     size_t len = strlen(input);
+
     if (start && len == 1) return false;
+
     for (size_t i = start; i < len; i++) {
         int val = char_to_val(input[i]);
         if (val < 0 || val >= base) return false;
@@ -112,12 +122,16 @@ bool from_any_to_dec(const char* input, int base, long long* out_val) {
 
     while (*num) {
         int digit = char_to_val(*num++);
-        if (val > (ULLONG_MAX - digit) / base) return false;
-        val = val * base + digit;
+
+        if (val > ULLONG_MAX / (unsigned long long)base) return false;
+        val *= (unsigned long long)base;
+
+        if (val > ULLONG_MAX - (unsigned long long)digit) return false;
+        val += (unsigned long long)digit;
     }
 
     if (neg) {
-        if (val == (unsigned long long)LLONG_MAX + 1) {
+        if (val == (unsigned long long)LLONG_MAX + 1ULL) {
             *out_val = LLONG_MIN;
         } else if (val > LLONG_MAX) {
             return false;
@@ -133,7 +147,7 @@ bool from_any_to_dec(const char* input, int base, long long* out_val) {
 
 char* from_dec_to_any(long long val, int base) {
     bool neg = (val < 0);
-    unsigned long long abs_val = neg ? -(unsigned long long)val : val;
+    unsigned long long abs_val = neg ? -(unsigned long long)val : (unsigned long long)val;
 
     if (abs_val == 0) {
         char* zero = malloc(2);
@@ -144,10 +158,12 @@ char* from_dec_to_any(long long val, int base) {
 
     char buf[CONVERSION_BUFFER_SIZE];
     int i = 0;
+
     while (abs_val > 0) {
-        buf[i++] = val_to_char(abs_val % base);
-        abs_val /= base;
+        buf[i++] = val_to_char((int)(abs_val % (unsigned)base));
+        abs_val /= (unsigned)base;
     }
+
     if (neg) buf[i++] = '-';
     buf[i] = '\0';
 
@@ -157,32 +173,36 @@ char* from_dec_to_any(long long val, int base) {
         buf[i - j - 1] = tmp;
     }
 
-    char* result = malloc(i + 1);
+    char* result = malloc((size_t)i + 1);
     if (!result) return NULL;
-    strcpy(result, buf);
+
+    memcpy(result, buf, (size_t)i + 1);
     return result;
 }
 
 char* convert_base(const char* input, int src_base, int dst_base) {
-    if (!input || input[0] == '\0') {
+    if (!input || !*input) {
         print_error("Input cannot be empty.");
         return NULL;
     }
+
     if (!is_valid_input(input, src_base)) {
         print_error("Input contains invalid characters for the source base.");
         return NULL;
     }
+
     long long dec_val;
     if (!from_any_to_dec(input, src_base, &dec_val)) {
-        print_error("Number is too large for a 64-bit signed integer.");
+        print_error("Number overflows signed 64-bit range.");
         return NULL;
     }
 
     char* result = from_dec_to_any(dec_val, dst_base);
     if (!result) {
-        print_error("Memory allocation failed during conversion.");
+        print_error("Memory allocation failed.");
         return NULL;
     }
+
     return result;
 }
 
@@ -190,15 +210,19 @@ char* convert_base(const char* input, int src_base, int dst_base) {
 //  Input Functions
 // ========================
 int get_numeric_base_input(const char* prompt) {
-    int base = 0;
+    int base;
+
     while (1) {
         printf("\n%s", prompt);
-        if (scanf(" %d", &base) != 1) {
-            print_error("Invalid input. Please enter a number.");
+
+        if (scanf("%d", &base) != 1) {
+            print_error("Invalid input. Enter a number.");
             clear_input_buffer();
             continue;
         }
+
         clear_input_buffer();
+
         if (base == 0 || (base >= 2 && base <= MAX_BASE)) return base;
         printf("! ERROR: Enter base between 2 and %d (or 0 to quit).\n", MAX_BASE);
     }
@@ -206,6 +230,7 @@ int get_numeric_base_input(const char* prompt) {
 
 char* get_dynamic_input(const char* prompt) {
     printf("%s", prompt);
+
     size_t size = INITIAL_INPUT_BUFFER_SIZE, len = 0;
     char* str = malloc(size);
     if (!str) return NULL;
@@ -215,26 +240,27 @@ char* get_dynamic_input(const char* prompt) {
         if (len + 1 >= size) {
             size *= 2;
             char* temp = realloc(str, size);
-            if (!temp) { free(str); return NULL; }
+            if (!temp) {
+                free(str);
+                return NULL;
+            }
             str = temp;
         }
-        str[len++] = ch;
+        str[len++] = (char)ch;
     }
+
     str[len] = '\0';
 
-    char* trimmed_start = trim_whitespace(str);
-    size_t trimmed_len = strlen(trimmed_start);
+    char* trimmed = trim_whitespace(str);
+    if (trimmed != str) memmove(str, trimmed, strlen(trimmed) + 1);
 
-    if (trimmed_start != str) {
-        memmove(str, trimmed_start, trimmed_len + 1);
+    if (*str == '\0') {
+        free(str);
+        return NULL;
     }
 
-    if (trimmed_len + 1 < size) {
-        char* shrunk = realloc(str, trimmed_len + 1);
-        if (shrunk) {
-            str = shrunk;
-        }
-    }
+    char* shrunk = realloc(str, strlen(str) + 1);
+    if (shrunk) str = shrunk;
 
     return str;
 }
@@ -242,18 +268,24 @@ char* get_dynamic_input(const char* prompt) {
 // ========================
 //  Main
 // ========================
-int main() {
+int main(void) {
     while (1) {
         print_menu();
-        int src_base = get_numeric_base_input("Enter source base (2-36, or 0 to quit): ");
+
+        int src_base = get_numeric_base_input("Enter source base (2–36, or 0 to quit): ");
         if (src_base == 0) break;
-        int dst_base = get_numeric_base_input("Enter destination base (2-36, or 0 to quit): ");
+
+        int dst_base = get_numeric_base_input("Enter destination base (2–36, or 0 to quit): ");
         if (dst_base == 0) break;
 
-        char prompt[100];
-        sprintf(prompt, "\nEnter number in base %d: ", src_base);
+        char prompt[64];
+        snprintf(prompt, sizeof(prompt), "\nEnter number in base %d: ", src_base);
+
         char* input = get_dynamic_input(prompt);
-        if (!input) { print_error("Memory allocation failed."); continue; }
+        if (!input) {
+            print_error("Input cannot be empty.");
+            continue;
+        }
 
         char* result = convert_base(input, src_base, dst_base);
         if (result) {
@@ -266,12 +298,14 @@ int main() {
         }
 
         free(input);
+
         printf("\nConvert another number? (Y/N): ");
-        char choice = getchar();
-        if (choice == EOF) break;
+        int choice = getchar();
         clear_input_buffer();
-        if (toupper(choice) != 'Y') break;
+
+        if (choice == EOF || toupper(choice) != 'Y') break;
     }
+
     print_header("Thank you for using the converter!");
     return 0;
 }
