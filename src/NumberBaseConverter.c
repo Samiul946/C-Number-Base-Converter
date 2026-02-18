@@ -335,23 +335,26 @@ int main(void) {
         char prompt[64];
         snprintf(prompt, sizeof(prompt), "\nEnter number in base %d: ", src_base);
 
-        char* input = get_dynamic_input(prompt);
-        if (!input) {
-            print_error("Input cannot be empty.");
-            continue;
-        }
+        char* result = NULL;
+        while (!result) {
+            char* input = get_dynamic_input(prompt);
+            if (!input) {
+                print_error("Input cannot be empty.");
+                continue;
+            }
 
-        char* result = convert_base(input, src_base, dst_base);
-        if (result) {
-            print_success("Conversion Result:");
-            printf("\n %s (base %d)\n", input, src_base);
-            printf(" | converts to |\n");
-            printf(" v             v\n");
-            printf(" %s (base %d)\n", result, dst_base);
-            free(result);
-        }
+            result = convert_base(input, src_base, dst_base);
+            if (result) {
+                print_success("Conversion Result:");
+                printf("\n %s (base %d)\n", input, src_base);
+                printf(" | converts to |\n");
+                printf(" v             v\n");
+                printf(" %s (base %d)\n", result, dst_base);
+                free(result);
+            }
 
-        free(input);
+            free(input);
+        }
 
         printf("\nConvert another number? (Y/N): ");
         int choice = getchar();
