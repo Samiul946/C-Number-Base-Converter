@@ -4,14 +4,17 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <assert.h>
 
 // ========================
 //  Constants
 // ========================
 #define LINE_WIDTH 60
 #define MAX_BASE 36
+#define MIN_BASE 2
 #define INITIAL_INPUT_BUFFER_SIZE 16
 #define CONVERSION_BUFFER_SIZE (sizeof(unsigned long long) * CHAR_BIT + 2)
+
 
 // ========================
 //  Function Declarations
@@ -22,7 +25,7 @@ void print_error(const char* message);
 void print_success(const char* message);
 void clear_input_buffer(void);
 char* trim_whitespace(char* str);
-int char_to_val(char c);
+int char_to_val(unsigned char c);
 char val_to_char(int val);
 bool is_valid_input(const char* input, int base);
 bool from_any_to_dec(const char* input, int base, long long* out_val);
@@ -36,8 +39,9 @@ char* get_dynamic_input(const char* prompt);
 // ========================
 void print_header(const char* title) {
     size_t len = strlen(title);
-    int pad_left = (LINE_WIDTH - (int)len) / 2;
-    int pad_right = LINE_WIDTH - pad_left - (int)len;
+    int pad_left = (int)len >= LINE_WIDTH ? 0 : (LINE_WIDTH - (int)len) / 2;
+    int pad_right = (pad_left + (int)len >= LINE_WIDTH) ? 0
+                    : (LINE_WIDTH - pad_left - (int)len);
 
     printf("\n");
     for (int i = 0; i < LINE_WIDTH; i++) putchar('=');
@@ -48,8 +52,8 @@ void print_header(const char* title) {
 
 void print_menu(void) {
     print_header("Universal Number Base Converter");
-    printf(" This program converts numbers between any base from 2 to %d.\n", MAX_BASE);
-    printf("  - Digits: 0–9, Letters: A–Z (case-insensitive)\n");
+    printf(" This program converts numbers between any base from %d to %d.\n", MIN_BASE, MAX_BASE);
+    printf("  - Digits: 0-9, Letters: A-Z (case-insensitive)\n");
     printf("  - Enter 0 for any base to quit.\n");
 }
 
@@ -82,31 +86,27 @@ char* trim_whitespace(char* str) {
     return str;
 }
 
-int char_to_val(char c) {
-    c = tolower((unsigned char)c);
+int char_to_val(unsigned char c) {
+    c = (unsigned char)tolower(c);
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'z') return c - 'a' + 10;
     return -1;
 }
 
 char val_to_char(int val) {
-    if (val >= 0 && val <= 9) return (char)(val + '0');
-    if (val >= 10 && val < MAX_BASE) return (char)(val - 10 + 'A');
-
-    fprintf(stderr, "Internal error: invalid digit %d\n", val);
-    abort();
+    assert(val >= 0 && val < MAX_BASE);
+    return (val <= 9) ? (char)(val + '0') : (char)(val - 10 + 'A');
 }
 
 bool is_valid_input(const char* input, int base) {
     if (!input || !*input) return false;
+    if (base < MIN_BASE || base > MAX_BASE) return false;
 
-    size_t start = (input[0] == '-' ? 1 : 0);
-    size_t len = strlen(input);
+    size_t start = (input[0] == '-') ? 1 : 0;
+    if (start && input[1] == '\0') return false;
 
-    if (start && len == 1) return false;
-
-    for (size_t i = start; i < len; i++) {
-        int val = char_to_val(input[i]);
+    for (size_t i = start; input[i]; i++) {
+        int val = char_to_val((unsigned char)input[i]);
         if (val < 0 || val >= base) return false;
     }
     return true;
@@ -116,12 +116,19 @@ bool is_valid_input(const char* input, int base) {
 //  Conversion Logic
 // ========================
 bool from_any_to_dec(const char* input, int base, long long* out_val) {
+    if (!input || !out_val) return false;
+    if (base < MIN_BASE || base > MAX_BASE) return false;
+    if (*input == '\0') return false;
+
     bool neg = (input[0] == '-');
     const char* num = neg ? input + 1 : input;
+    if (*num == '\0') return false;
+
     unsigned long long val = 0;
 
     while (*num) {
-        int digit = char_to_val(*num++);
+        int digit = char_to_val((unsigned char)*num++);
+        if (digit < 0 || digit >= base) return false;
 
         if (val > ULLONG_MAX / (unsigned long long)base) return false;
         val *= (unsigned long long)base;
@@ -131,23 +138,30 @@ bool from_any_to_dec(const char* input, int base, long long* out_val) {
     }
 
     if (neg) {
-        if (val == (unsigned long long)LLONG_MAX + 1ULL) {
+        if (val == (unsigned long long)LLONG_MAX + 1ULL)
             *out_val = LLONG_MIN;
-        } else if (val > LLONG_MAX) {
+        else if (val > (unsigned long long)LLONG_MAX)
             return false;
-        } else {
+        else
             *out_val = -(long long)val;
-        }
     } else {
-        if (val > LLONG_MAX) return false;
+        if (val > (unsigned long long)LLONG_MAX) return false;
         *out_val = (long long)val;
     }
+
     return true;
 }
 
 char* from_dec_to_any(long long val, int base) {
+    if (base < MIN_BASE || base > MAX_BASE) return NULL;
+
     bool neg = (val < 0);
-    unsigned long long abs_val = neg ? -(unsigned long long)val : (unsigned long long)val;
+    unsigned long long abs_val;
+
+    if (val == LLONG_MIN)
+        abs_val = (unsigned long long)LLONG_MAX + 1ULL;
+    else
+        abs_val = neg ? (unsigned long long)(-val) : (unsigned long long)val;
 
     if (abs_val == 0) {
         char* zero = malloc(2);
@@ -160,8 +174,8 @@ char* from_dec_to_any(long long val, int base) {
     int i = 0;
 
     while (abs_val > 0) {
-        buf[i++] = val_to_char((int)(abs_val % (unsigned)base));
-        abs_val /= (unsigned)base;
+        buf[i++] = val_to_char((int)(abs_val % (unsigned long long)base));
+        abs_val /= (unsigned long long)base;
     }
 
     if (neg) buf[i++] = '-';
@@ -181,8 +195,14 @@ char* from_dec_to_any(long long val, int base) {
 }
 
 char* convert_base(const char* input, int src_base, int dst_base) {
-    if (!input || !*input) {
-        print_error("Input cannot be empty.");
+    if (dst_base < MIN_BASE || dst_base > MAX_BASE) {
+        print_error("Destination base must be between 2 and 36.");
+        return NULL;
+    }
+
+    /* Check input separately so a NULL pointer gives a clear message */
+    if (!input) {
+        print_error("Input must not be NULL.");
         return NULL;
     }
 
@@ -199,7 +219,7 @@ char* convert_base(const char* input, int src_base, int dst_base) {
 
     char* result = from_dec_to_any(dec_val, dst_base);
     if (!result) {
-        print_error("Memory allocation failed.");
+        print_error("Conversion failed.");
         return NULL;
     }
 
@@ -210,21 +230,50 @@ char* convert_base(const char* input, int src_base, int dst_base) {
 //  Input Functions
 // ========================
 int get_numeric_base_input(const char* prompt) {
-    int base;
+    char buf[32];
 
     while (1) {
         printf("\n%s", prompt);
 
-        if (scanf("%d", &base) != 1) {
-            print_error("Invalid input. Enter a number.");
+        if (!fgets(buf, sizeof(buf), stdin)) {
+            /* EOF (Ctrl-D or closed pipe) — treat as quit */
+            if (feof(stdin)) return 0;
+            print_error("Failed to read input.");
+            continue;
+        }
+
+        /* Reject if the line didn't fit (no newline and not at EOF) */
+        if (!strchr(buf, '\n') && !feof(stdin)) {
+            print_error("Input too long. Enter a number.");
             clear_input_buffer();
             continue;
         }
 
-        clear_input_buffer();
+        char* end;
+        long parsed = strtol(buf, &end, 10);
 
-        if (base == 0 || (base >= 2 && base <= MAX_BASE)) return base;
-        printf("! ERROR: Enter base between 2 and %d (or 0 to quit).\n", MAX_BASE);
+        /* raw_end == buf means strtol consumed no digits (empty or
+           whitespace-only line). Any non-whitespace after the number
+           means the input contained garbage (e.g. "10garbage"). */
+        const char* raw_end = end;
+        while (isspace((unsigned char)*end)) end++;
+        if (raw_end == buf || *end != '\0') {
+            print_error("Invalid input. Enter a number.");
+            continue;
+        }
+
+        /* Value outside the range we accept — strtol saturation at
+           LONG_MAX/LONG_MIN is also caught here, no errno check needed */
+        if (parsed < 0 || parsed > MAX_BASE) {
+            printf("! ERROR: Enter base between %d and %d (or 0 to quit).\n",
+                   MIN_BASE, MAX_BASE);
+            continue;
+        }
+
+        int base = (int)parsed;
+        if (base == 0 || (base >= MIN_BASE && base <= MAX_BASE)) return base;
+        printf("! ERROR: Enter base between %d and %d (or 0 to quit).\n",
+               MIN_BASE, MAX_BASE);
     }
 }
 
@@ -251,15 +300,20 @@ char* get_dynamic_input(const char* prompt) {
 
     str[len] = '\0';
 
+    /* trim_whitespace returns a pointer into str; shift content to the
+       front so str remains the allocation we can realloc/free */
     char* trimmed = trim_whitespace(str);
-    if (trimmed != str) memmove(str, trimmed, strlen(trimmed) + 1);
+    size_t trimmed_len = strlen(trimmed);
+    if (trimmed != str)
+        memmove(str, trimmed, trimmed_len + 1);
 
-    if (*str == '\0') {
+    if (trimmed_len == 0) {
         free(str);
         return NULL;
     }
 
-    char* shrunk = realloc(str, strlen(str) + 1);
+    /* Shrink to exact size; if realloc fails keep the larger allocation */
+    char* shrunk = realloc(str, trimmed_len + 1);
     if (shrunk) str = shrunk;
 
     return str;
@@ -272,10 +326,10 @@ int main(void) {
     while (1) {
         print_menu();
 
-        int src_base = get_numeric_base_input("Enter source base (2–36, or 0 to quit): ");
+        int src_base = get_numeric_base_input("Enter source base (2-36, or 0 to quit): ");
         if (src_base == 0) break;
 
-        int dst_base = get_numeric_base_input("Enter destination base (2–36, or 0 to quit): ");
+        int dst_base = get_numeric_base_input("Enter destination base (2-36, or 0 to quit): ");
         if (dst_base == 0) break;
 
         char prompt[64];
