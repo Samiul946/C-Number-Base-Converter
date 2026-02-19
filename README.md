@@ -30,12 +30,6 @@ Built with a strong focus on **memory safety, efficiency, and robust error handl
    git clone https://github.com/Samiul946/C-Number-Base-Converter.git
    cd C-Number-Base-Converter
 
-   
-2. **Compile the program**:
-Using make (recommended):
-```bash
-make
-```
 
 **Or manually**:
 ```bash
