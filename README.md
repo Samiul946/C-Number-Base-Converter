@@ -47,10 +47,6 @@ gcc -Wall -Wextra -std=c11 -O2 -Iinclude -o NumberBaseConverter src/NumberBaseCo
 ./build/converter
 ```
 
-***Run automated tests***:
-```bash
-./build/test_converter
-```
 ## 🧠 Technical Highlights
 
 ### 🔒 Memory Safety by Design
