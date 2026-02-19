@@ -21,16 +21,14 @@ Built with a strong focus on **memory safety, efficiency, and robust error handl
 
 ### 📋 Prerequisites
 - A C compiler (e.g., **GCC** or **Clang**)  
-- The `make` build tool (recommended for simplicity)  
 
 ### ⚡ Build & Run
 
-1. **Clone the repository**:
+**Clone the repository**:
 ```bash
 git clone https://github.com/Samiul946/C-Number-Base-Converter.git
    cd C-Number-Base-Converter
 ```
-
 
 
 ## 🧠 Technical Highlights
