@@ -27,14 +27,8 @@ Built with a strong focus on **memory safety, efficiency, and robust error handl
 
 1. **Clone the repository**:
 ```bash
-   git clone https://github.com/Samiul946/C-Number-Base-Converter.git
+git clone https://github.com/Samiul946/C-Number-Base-Converter.git
    cd C-Number-Base-Converter
-
-
-**Run the interactive converter**:
-```bash
-./build/converter
-```
 
 ## 🧠 Technical Highlights
 
